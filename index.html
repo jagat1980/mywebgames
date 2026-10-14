@@ -60,7 +60,7 @@ small{color:var(--muted);font-size:12px}
   <div id="stage">
     <canvas id="cv" aria-label="Potion Merge game area"></canvas>
     <div id="toast"></div>
-    <div id="ver">v4</div>
+    <div id="ver">v5</div>
 
     <div class="ov" id="ovStart">
       <h1>🧙 Potion Merge</h1>
@@ -91,7 +91,7 @@ small{color:var(--muted);font-size:12px}
   <div id="codex" aria-label="Ingredient progression"></div>
 
   <footer class="bar">
-    <button id="btnShake">🫧 Bubble the cauldron <small>(60 🪙 or ad)</small></button>
+    <button id="btnShake">✨ Bubble the cauldron <small>(60 🪙 or ad)</small></button>
     <button id="btnMute" aria-label="Toggle sound">🔊</button>
     <button id="btnRestart" aria-label="Restart">↻</button>
   </footer>
@@ -133,7 +133,7 @@ const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => a + Math.random() * (b - a);
-const VERSION = 'v4';
+const VERSION = 'v5';
 function cg() { try { return (window.CrazyGames && window.CrazyGames.SDK) || null; } catch (e) { return null; } }
 let cgReady = false;
 function backend() { const sdk = cg(); return (cgReady && sdk && sdk.data) ? sdk.data : localStorage; }
@@ -338,7 +338,7 @@ function bubble(src, msg) {
   }
   grace = 1.6; shakeT = 0.45;
   Sfx.bubble();
-  toast(msg || '🫧 The cauldron bubbles!');
+  toast(msg || '✨ The cauldron bubbles!');
   track('bubble', { source: src });
 }
 
@@ -660,8 +660,8 @@ function updateShakeLabel() {
   const b = $('btnShake');
   if (!b) return;
   b.innerHTML = coins >= SHAKE_COST
-    ? '🫧 Bubble the cauldron <small>(' + SHAKE_COST + ' 🪙)</small>'
-    : '🫧 Bubble the cauldron <small>(▶ watch ad)</small>';
+    ? '✨ Bubble the cauldron <small>(' + SHAKE_COST + ' 🪙)</small>'
+    : '✨ Bubble the cauldron <small>(▶ watch ad)</small>';
 }
 function setMuteIcon() { $('btnMute').textContent = Sfx.muted ? '🔇' : '🔊'; }
 $('btnMute').addEventListener('click', () => { Sfx.muted = !Sfx.muted; store.set('muted', Sfx.muted); setMuteIcon(); });
