@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>Potion Merge</title>
+<style>
+:root{
+  --bg:#140b26; --panel:#24163f; --ink:#f3eaff; --muted:#b9a6dc;
+  --accent:#7cf29a; --accent-ink:#0d2614; --warn:#ff6b6b; --gold:#ffd54f;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{height:100vh;height:100dvh;max-width:520px;margin-inline:auto;display:flex;flex-direction:column;padding:8px;gap:6px}
+.hud{display:flex;gap:6px}
+.stat{flex:1;background:var(--panel);border-radius:10px;padding:5px 8px;text-align:center;min-width:0}
+.stat .lbl{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat span:last-child{font-size:18px;font-weight:700}
+.stat.next span:last-child{font-size:22px;line-height:1.1}
+#stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cv{display:block;touch-action:none;border-radius:14px;cursor:pointer}
+#codex{display:flex;justify-content:center;gap:2px;font-size:18px;background:var(--panel);border-radius:10px;padding:4px}
+#codex span{opacity:.18;filter:grayscale(1);transition:all .3s}
+#codex span.found{opacity:1;filter:none}
+.bar{display:flex;gap:6px}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid #3c2a63;border-radius:10px;padding:9px 12px;cursor:pointer}
+button:active{transform:scale(.97)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;font-weight:700}
+button:disabled{opacity:.4;cursor:default}
+.bar #btnShake{flex:1}
+small{color:var(--muted);font-size:12px}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  text-align:center;padding:24px;background:rgba(12,6,24,.86);border-radius:14px;backdrop-filter:blur(3px)}
+.ov h1{margin:0;font-size:34px}
+.ov h2{margin:0;font-size:26px}
+.ov p{margin:0;max-width:330px;line-height:1.4}
+.ov button{min-width:240px}
+.ov .big{font-size:40px;font-weight:800;color:var(--gold)}
+#adCount{font-size:56px;font-weight:800;color:var(--gold)}
+#ver{position:absolute;bottom:6px;inset-inline-end:10px;font-size:11px;color:var(--muted);opacity:.7;pointer-events:none}
+#toast{position:absolute;top:14px;inset-inline:0;margin-inline:auto;width:max-content;max-width:90%;
+  background:rgba(0,0,0,.65);padding:7px 14px;border-radius:999px;font-weight:700;pointer-events:none;
+  opacity:0;transform:translateY(-8px);transition:all .25s}
+#toast.show{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hud">
+    <div class="stat"><span class="lbl">Score</span><span id="score">0</span></div>
+    <div class="stat"><span class="lbl">Best</span><span id="best">0</span></div>
+    <div class="stat"><span class="lbl">Coins</span><span id="coins">0</span></div>
+    <div class="stat next"><span class="lbl">Next</span><span id="next">🌿</span></div>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv" aria-label="Potion Merge game area"></canvas>
+    <div id="toast"></div>
+    <div id="ver">v4</div>
+
+    <div class="ov" id="ovStart">
+      <h1>🧙 Potion Merge</h1>
+      <p>Drop ingredients into the cauldron. When two identical ones touch, they merge into something stronger.</p>
+      <p>Brew the 🧪 <b>Legendary Elixir</b>, but don't let the cauldron overflow!</p>
+      <p><small>Every 15 merges the cauldron bubbles and jostles everything, so watch for chain reactions.</small></p>
+      <button id="btnPlay" class="primary">▶ Play</button>
+      <small>Mouse or touch: aim and release · Keyboard: ← → and Space</small>
+    </div>
+
+    <div class="ov" id="ovOver" hidden>
+      <h2>The cauldron overflowed!</h2>
+      <div class="big" id="finalScore">0</div>
+      <p>Best: <b id="finalBest">0</b> · Highest brew: <span id="finalHigh">🌿</span></p>
+      <button id="btnReviveAd" class="primary">▶ Watch ad: remove top 3</button>
+      <button id="btnReviveCoins">Use 100 🪙: remove top 3</button>
+      <p id="reviveUsed" hidden><small>Revive used: one per game</small></p>
+      <button id="btnAgain">↻ Play again</button>
+    </div>
+
+    <div class="ov" id="adOverlay" hidden>
+      <p><b>Rewarded ad placeholder</b></p>
+      <div id="adCount">3</div>
+      <p><small>In the published game this calls the CrazyGames or Poki ad SDK.</small></p>
+    </div>
+  </div>
+
+  <div id="codex" aria-label="Ingredient progression"></div>
+
+  <footer class="bar">
+    <button id="btnShake">🫧 Bubble the cauldron <small>(60 🪙 or ad)</small></button>
+    <button id="btnMute" aria-label="Toggle sound">🔊</button>
+    <button id="btnRestart" aria-label="Restart">↻</button>
+  </footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Config ---------- */
+const W = 420, H = 640;
+const WL = 36, WR = 384, FLOOR = 606, LINE = 132, DROP_Y = 78;
+const GRAVITY = 1500, STEP = 1 / 240;
+const BUBBLE_EVERY = 15, SHAKE_COST = 60, REVIVE_COST = 100;
+/* Difficulty: higher score = bigger starting ingredients */
+const STAGES = [
+  { at: 0,    w: [30, 26, 20, 14, 10] },
+  { at: 600,  w: [22, 24, 22, 18, 14] },
+  { at: 1500, w: [16, 20, 22, 20, 16, 6] },
+  { at: 3000, w: [10, 15, 20, 22, 20, 13] }
+];
+const TIERS = [
+  { e: '🌿', n: 'Herb',             r: 15, c: '#43a047', p: 1 },
+  { e: '🍄', n: 'Mushroom',         r: 20, c: '#e53935', p: 3 },
+  { e: '👁️', n: 'Eyeball',          r: 26, c: '#eceff1', p: 6 },
+  { e: '🐸', n: 'Frog',             r: 32, c: '#7cb342', p: 10 },
+  { e: '🦇', n: 'Bat Wing',         r: 39, c: '#5e35b1', p: 15 },
+  { e: '🕷️', n: 'Spider',           r: 46, c: '#37474f', p: 21 },
+  { e: '🌙', n: 'Moonstone',        r: 54, c: '#ffca28', p: 28 },
+  { e: '🔮', n: 'Crystal Ball',     r: 62, c: '#ab47bc', p: 36 },
+  { e: '⭐', n: 'Star Dust',        r: 71, c: '#fdd835', p: 45 },
+  { e: '🐉', n: 'Dragon Scale',     r: 81, c: '#e53935', p: 55 },
+  { e: '🧪', n: 'Legendary Elixir', r: 92, c: '#00e5ff', p: 66 }
+];
+const MAXT = TIERS.length - 1;
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const VERSION = 'v4';
+function cg() { try { return (window.CrazyGames && window.CrazyGames.SDK) || null; } catch (e) { return null; } }
+let cgReady = false;
+function backend() { const sdk = cg(); return (cgReady && sdk && sdk.data) ? sdk.data : localStorage; }
+const store = {
+  get(k, d) { try { const v = backend().getItem('pm_' + k); return v === null || v === undefined ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { backend().setItem('pm_' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
+};
+
+/* ---------- Analytics (swap for your provider later) ---------- */
+const events = [];
+window.__pmEvents = events;
+function track(name, data) {
+  const e = Object.assign({ name: name, t: Date.now() }, data || {});
+  events.push(e);
+  if (events.length > 500) events.shift();
+  try { console.log('[analytics]', name, data || {}); } catch (err) { /* never break the game */ }
+}
+
+/* ---------- Platform / ads adapter (replace with CrazyGames or Poki SDK calls) ---------- */
+function cgCall(fn) { const sdk = cg(); if (!cgReady || !sdk) return false; try { fn(sdk); } catch (e) { track('sdk_error', { msg: String(e) }); } return true; }
+function cgAd(type, placement) {
+  return new Promise(resolve => {
+    const sdk = cg();
+    let done = false;
+    const finish = ok => { if (done) return; done = true; Sfx.adMute = false; paused = document.hidden; resolve(ok); };
+    paused = true; Sfx.adMute = true;
+    try {
+      sdk.ad.requestAd(type, {
+        adStarted: () => track('ad_started', { type: type, placement: placement }),
+        adFinished: () => { track('ad_finished', { type: type, placement: placement }); finish(true); },
+        adError: err => { track('ad_error', { type: type, placement: placement, err: String(err && err.code || err) }); finish(false); }
+      });
+    } catch (e) { finish(false); }
+  });
+}
+const Platform = {
+  gameplayStart() { track('sdk_gameplay_start'); cgCall(sdk => sdk.game.gameplayStart()); },
+  gameplayStop() { track('sdk_gameplay_stop'); cgCall(sdk => sdk.game.gameplayStop()); },
+  happytime() { track('sdk_happytime'); cgCall(sdk => sdk.game.happytime()); },
+  midgameAd() {
+    track('ad_midgame_request');
+    if (cgReady && cg()) return cgAd('midgame', 'play_again').then(() => undefined);
+    return Promise.resolve();
+  },
+  rewardedAd(placement) {
+    track('ad_rewarded_request', { placement: placement });
+    if (cgReady && cg()) {
+      return cgAd('rewarded', placement).then(ok => {
+        if (!ok) toast('No ad available right now. Try again later.');
+        return ok;
+      });
+    }
+    return new Promise(resolve => {
+      paused = true;
+      const ov = $('adOverlay');
+      let n = 3;
+      $('adCount').textContent = n;
+      ov.hidden = false;
+      const iv = setInterval(() => {
+        n -= 1;
+        $('adCount').textContent = n;
+        if (n <= 0) {
+          clearInterval(iv);
+          ov.hidden = true;
+          paused = document.hidden;
+          track('ad_rewarded_complete', { placement: placement });
+          resolve(true);
+        }
+      }, 1000);
+    });
+  }
+};
+
+/* ---------- Sound (synthesised, no files) ---------- */
+const Sfx = {
+  ac: null,
+  muted: store.get('muted', false),
+  adMute: false,
+  init() {
+    if (!this.ac) { try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ac = null; } }
+    if (this.ac && this.ac.state === 'suspended') this.ac.resume();
+  },
+  tone(f, dur, type, vol, slide) {
+    if (this.muted || this.adMute || !this.ac) return;
+    const t = this.ac.currentTime;
+    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f * slide), t + dur);
+    g.gain.setValueAtTime(vol || 0.12, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.ac.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  drop() { this.tone(330, 0.12, 'sine', 0.12, 0.5); },
+  merge(t) { this.tone(240 * Math.pow(1.12, t), 0.2, 'triangle', 0.16, 1.8); },
+  bubble() { for (let i = 0; i < 7; i++) setTimeout(() => this.tone(rand(160, 480), 0.1, 'sine', 0.07, 1.7), i * 55); },
+  elixir() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, 'triangle', 0.14), i * 110)); },
+  over() { this.tone(300, 0.7, 'sawtooth', 0.09, 0.3); }
+};
+
+/* ---------- State ---------- */
+const cv = $('cv'), ctx = cv.getContext('2d');
+let bodies = [], particles = [];
+let state = 'menu', paused = false;
+let score = 0, best = store.get('best', 0), coins = store.get('coins', 0);
+let cur = 0, nxt = 0, aimX = W / 2, cool = 0, overT = 0, grace = 0, shakeT = 0;
+let stage = 0, floaters = [];
+let mergeCount = 0, revived = false, highest = 0, startTime = 0, nextId = 1;
+const discovered = new Set(store.get('disc', [0]));
+const keys = { left: false, right: false };
+
+function stageFor(sc) { let k = 0; STAGES.forEach((st, i) => { if (sc >= st.at) k = i; }); return k; }
+function randTier() {
+  const w = STAGES[stage].w;
+  let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < w.length; i++) { if (x < w[i]) return i; x -= w[i]; }
+  return 0;
+}
+
+function spawn(t, x, y, vx, vy, pop) {
+  const b = { id: nextId++, t: t, x: x, y: y, vx: vx || 0, vy: vy || 0, r: TIERS[t].r, a: 0, age: 0, dead: false, pop: pop ? 1 : 0 };
+  bodies.push(b);
+  return b;
+}
+
+/* ---------- Game flow ---------- */
+function newGame() {
+  bodies = []; particles = []; floaters = []; stage = 0;
+  score = 0; mergeCount = 0; revived = false; overT = 0; grace = 0; highest = 0; cool = 0.2;
+  cur = Math.floor(Math.random() * 3); nxt = randTier();
+  state = 'play';
+  startTime = performance.now();
+  $('ovStart').hidden = true; $('ovOver').hidden = true;
+  Platform.gameplayStart();
+  track('game_start', { best: best });
+  updateHud();
+}
+
+function drop() {
+  if (state !== 'play' || paused || cool > 0) return;
+  Sfx.init();
+  const r = TIERS[cur].r;
+  const x = clamp(aimX, WL + r, WR - r);
+  spawn(cur, x, DROP_Y, 0, 120);
+  track('drop', { tier: cur });
+  cur = nxt; nxt = randTier();
+  cool = 0.5;
+  Sfx.drop();
+  updateHud();
+}
+
+function doMerge(a, b) {
+  const t = a.t, x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+  mergeCount++;
+  burst(x, y, TIERS[t].c, 10 + t * 3);
+  Sfx.merge(t);
+  if (t < MAXT) {
+    const nt = t + 1;
+    spawn(nt, x, y, (a.vx + b.vx) / 2, Math.min(0, (a.vy + b.vy) / 2), true);
+    score += TIERS[nt].p;
+    const gain = t >= 2 ? Math.floor((t + 1) / 3) : 0;
+    coins += gain;
+    floater(x, y - 10, '+' + TIERS[nt].p, '#ffffff');
+    if (gain) floater(x, y + 14, '+' + gain + ' 🪙', '#ffd54f');
+    highest = Math.max(highest, nt);
+    if (!discovered.has(nt)) {
+      discovered.add(nt);
+      store.set('disc', Array.from(discovered));
+      toast('New brew: ' + TIERS[nt].e + ' ' + TIERS[nt].n + '!');
+      if (nt >= 7) Platform.happytime();
+      track('discover', { tier: nt });
+    }
+    track('merge', { tier: nt });
+  } else {
+    score += 200; coins += 10;
+    floater(x, y, '+200  +10 🪙', '#ffd54f');
+    burst(x, y, '#ffffff', 60);
+    Sfx.elixir();
+    toast('🧪 LEGENDARY ELIXIR BREWED! +200');
+    Platform.happytime();
+    track('elixir_complete');
+  }
+  if (mergeCount % BUBBLE_EVERY === 0) bubble('auto');
+  const ns = stageFor(score);
+  if (ns > stage) {
+    stage = ns;
+    setTimeout(() => toast('🔥 The fire burns hotter! Bigger ingredients incoming'), 900);
+    track('difficulty_up', { stage: stage, score: score });
+  }
+  store.set('coins', coins);
+  updateHud();
+}
+
+function bubble(src, msg) {
+  for (const b of bodies) {
+    b.vy -= rand(320, 560);
+    b.vx += rand(-140, 140);
+  }
+  for (let i = 0; i < 40; i++) {
+    particles.push({ x: rand(WL, WR), y: FLOOR - rand(0, 30), vx: rand(-20, 20), vy: rand(-260, -120), life: rand(0.6, 1.2), c: '#9cff9c', r: rand(3, 8), up: true });
+  }
+  grace = 1.6; shakeT = 0.45;
+  Sfx.bubble();
+  toast(msg || '🫧 The cauldron bubbles!');
+  track('bubble', { source: src });
+}
+
+function gameOver() {
+  state = 'over';
+  Platform.gameplayStop();
+  Sfx.over();
+  if (score > best) { best = score; store.set('best', best); }
+  $('finalScore').textContent = score;
+  $('finalBest').textContent = best;
+  $('finalHigh').textContent = TIERS[highest].e + ' ' + TIERS[highest].n;
+  $('btnReviveAd').hidden = revived;
+  $('btnReviveCoins').hidden = revived;
+  $('btnReviveCoins').disabled = coins < REVIVE_COST;
+  $('btnReviveCoins').textContent = coins < REVIVE_COST
+    ? 'Need ' + REVIVE_COST + ' 🪙 to revive (you have ' + coins + ')'
+    : 'Use ' + REVIVE_COST + ' 🪙: remove top 3 (you have ' + coins + ')';
+  $('reviveUsed').hidden = !revived;
+  $('ovOver').hidden = false;
+  track('game_over', { score: score, merges: mergeCount, highest: highest, seconds: Math.round((performance.now() - startTime) / 1000), revived: revived });
+  updateHud();
+}
+
+function revive(method) {
+  const sorted = bodies.slice().sort((p, q) => (p.y - p.r) - (q.y - q.r));
+  sorted.slice(0, 3).forEach(b => { b.dead = true; burst(b.x, b.y, TIERS[b.t].c, 12); });
+  bodies = bodies.filter(b => !b.dead);
+  revived = true; overT = 0; grace = 2; cool = 0.3;
+  state = 'play';
+  $('ovOver').hidden = true;
+  Platform.gameplayStart();
+  track('revive', { method: method });
+  updateHud();
+}
+
+/* ---------- Physics ---------- */
+function physics(dt) {
+  for (const b of bodies) {
+    b.vy += GRAVITY * dt;
+    b.vx *= 0.9995;
+    const sp = Math.hypot(b.vx, b.vy);
+    if (sp > 2200) { b.vx *= 2200 / sp; b.vy *= 2200 / sp; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.age += dt;
+    b.a += (b.vx * dt) / b.r;
+  }
+  const merges = [];
+  for (let it = 0; it < 3; it++) {
+    for (let i = 0; i < bodies.length; i++) {
+      const a = bodies[i];
+      if (a.dead) continue;
+      for (let j = i + 1; j < bodies.length; j++) {
+        const b = bodies[j];
+        if (b.dead) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, md = a.r + b.r;
+        if (dx > md || dx < -md || dy > md || dy < -md) continue;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= md * md) continue;
+        if (a.t === b.t) { a.dead = true; b.dead = true; merges.push([a, b]); break; }
+        const d = Math.sqrt(d2) || 0.01;
+        const nx = dx / d, ny = dy / d, ov = md - d;
+        const ma = a.r * a.r, mb = b.r * b.r, tm = ma + mb;
+        a.x -= nx * ov * mb / tm; a.y -= ny * ov * mb / tm;
+        b.x += nx * ov * ma / tm; b.y += ny * ov * ma / tm;
+        const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+        if (rv < 0) {
+          const inv = 1 / ma + 1 / mb;
+          const jn = -1.15 * rv / inv;
+          a.vx -= jn * nx / ma; a.vy -= jn * ny / ma;
+          b.vx += jn * nx / mb; b.vy += jn * ny / mb;
+          const tx = -ny, ty = nx;
+          const tv = (b.vx - a.vx) * tx + (b.vy - a.vy) * ty;
+          const jt = -tv * 0.04 / inv;
+          a.vx -= jt * tx / ma; a.vy -= jt * ty / ma;
+          b.vx += jt * tx / mb; b.vy += jt * ty / mb;
+        }
+      }
+      if (a.x - a.r < WL) { a.x = WL + a.r; if (a.vx < 0) a.vx *= -0.3; }
+      if (a.x + a.r > WR) { a.x = WR - a.r; if (a.vx > 0) a.vx *= -0.3; }
+      if (a.y + a.r > FLOOR) { a.y = FLOOR - a.r; if (a.vy > 0) a.vy *= -0.2; a.vx *= 0.995; }
+    }
+  }
+  if (merges.length) {
+    for (const m of merges) doMerge(m[0], m[1]);
+    bodies = bodies.filter(b => !b.dead);
+  }
+}
+
+function update(dt) {
+  cool = Math.max(0, cool - dt);
+  if (keys.left) aimX -= 340 * dt;
+  if (keys.right) aimX += 340 * dt;
+  aimX = clamp(aimX, WL, WR);
+  for (const b of bodies) if (b.pop > 0) b.pop = Math.max(0, b.pop - dt * 4);
+  let danger = false;
+  for (const b of bodies) if (b.age > 1.5 && b.y - b.r < LINE) { danger = true; break; }
+  if (grace > 0) { grace -= dt; danger = false; }
+  overT = danger ? overT + dt : Math.max(0, overT - dt * 2);
+  if (overT > 2.2) gameOver();
+}
+
+/* ---------- Particles ---------- */
+function burst(x, y, c, n) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2, sp = rand(80, 320);
+    particles.push({ x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: rand(0.35, 0.8), c: c, r: rand(2, 5), up: false });
+  }
+}
+function floater(x, y, text, c) { floaters.push({ x: x, y: y, text: text, c: c, life: 1.1 }); }
+function updateParticles(dt) {
+  for (const f of floaters) { f.y -= 45 * dt; f.life -= dt; }
+  floaters = floaters.filter(f => f.life > 0);
+  for (const p of particles) {
+    if (!p.up) p.vy += 700 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+  shakeT = Math.max(0, shakeT - dt);
+}
+
+/* ---------- Rendering ---------- */
+const stars = Array.from({ length: 40 }, () => ({ x: rand(0, W), y: rand(0, H * 0.6), s: rand(0.5, 1.8), p: rand(0, 6) }));
+
+function drawCauldron(now) {
+  // legs and fire
+  ctx.fillStyle = '#1b1426';
+  ctx.fillRect(WL + 10, FLOOR + 6, 18, 26);
+  ctx.fillRect(WR - 28, FLOOR + 6, 18, 26);
+  ctx.font = '22px ' + EMOJI_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < 4; i++) {
+    const fx = W / 2 - 54 + i * 36, fy = FLOOR + 22 + Math.sin(now / 120 + i) * 2;
+    ctx.fillText('🔥', fx, fy);
+  }
+  // pot body
+  const top = LINE - 34;
+  ctx.beginPath();
+  ctx.moveTo(WL - 16, top);
+  ctx.lineTo(WL - 16, FLOOR - 40);
+  ctx.quadraticCurveTo(WL - 16, FLOOR + 16, W / 2, FLOOR + 16);
+  ctx.quadraticCurveTo(WR + 16, FLOOR + 16, WR + 16, FLOOR - 40);
+  ctx.lineTo(WR + 16, top);
+  ctx.closePath();
+  const pg = ctx.createLinearGradient(WL - 16, 0, WR + 16, 0);
+  pg.addColorStop(0, '#2a2236'); pg.addColorStop(0.5, '#3d3350'); pg.addColorStop(1, '#221b2d');
+  ctx.fillStyle = pg; ctx.fill();
+  // inner space
+  const ig = ctx.createLinearGradient(0, top, 0, FLOOR);
+  ig.addColorStop(0, 'rgba(40,24,70,0.95)'); ig.addColorStop(1, 'rgba(30,70,45,0.95)');
+  ctx.fillStyle = ig;
+  ctx.fillRect(WL, top, WR - WL, FLOOR - top);
+  // brew glow
+  const gl = ctx.createRadialGradient(W / 2, FLOOR, 10, W / 2, FLOOR, 220);
+  gl.addColorStop(0, 'rgba(124,242,154,0.35)'); gl.addColorStop(1, 'rgba(124,242,154,0)');
+  ctx.fillStyle = gl; ctx.fillRect(WL, top, WR - WL, FLOOR - top);
+  // rim
+  ctx.fillStyle = '#4a3f5e';
+  roundRect(WL - 26, top - 14, WR - WL + 52, 18, 9); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  roundRect(WL - 20, top - 12, WR - WL + 40, 5, 3); ctx.fill();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawBody(b, alpha) {
+  const T = TIERS[b.t];
+  const s = b.pop > 0 ? 1 + 0.22 * Math.sin(b.pop * Math.PI) : 1;
+  ctx.save();
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  ctx.translate(b.x, b.y);
+  ctx.scale(s, s);
+  const g = ctx.createRadialGradient(-b.r * 0.35, -b.r * 0.4, b.r * 0.08, 0, 0, b.r);
+  g.addColorStop(0, 'rgba(255,255,255,0.75)');
+  g.addColorStop(0.32, T.c);
+  g.addColorStop(1, T.c);
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+  ctx.rotate(b.a);
+  ctx.font = Math.round(b.r * 1.15) + 'px ' + EMOJI_FONT;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(T.e, 0, b.r * 0.06);
+  ctx.restore();
+}
+
+function render(now) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1a1030'); bg.addColorStop(1, '#2d1b4e');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  for (const s of stars) {
+    ctx.globalAlpha = 0.35 + 0.35 * Math.sin(now / 700 + s.p);
+    ctx.fillStyle = '#fff'; ctx.fillRect(s.x, s.y, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = '30px ' + EMOJI_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🌕', W - 40, 34);
+
+  ctx.save();
+  if (shakeT > 0) { const k = shakeT / 0.45 * 7; ctx.translate(rand(-k, k), rand(-k, k)); }
+  drawCauldron(now);
+
+  // danger line
+  ctx.save();
+  ctx.setLineDash([8, 8]); ctx.lineWidth = 2;
+  ctx.strokeStyle = overT > 0 ? 'rgba(255,80,80,' + (0.55 + 0.45 * Math.sin(now / 60)) + ')' : 'rgba(255,255,255,0.18)';
+  ctx.beginPath(); ctx.moveTo(WL, LINE); ctx.lineTo(WR, LINE); ctx.stroke();
+  ctx.restore();
+
+  // aim guide and held ingredient
+  if (state === 'play') {
+    const r = TIERS[cur].r, x = clamp(aimX, WL + r, WR - r);
+    ctx.save();
+    ctx.setLineDash([4, 10]); ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, DROP_Y + r); ctx.lineTo(x, FLOOR); ctx.stroke();
+    ctx.restore();
+    drawBody({ x: x, y: DROP_Y, t: cur, r: r, a: 0, pop: 0 }, cool > 0 ? 0.45 : 1);
+  }
+
+  for (const b of bodies) drawBody(b);
+
+  for (const p of particles) {
+    ctx.globalAlpha = clamp(p.life * 1.5, 0, 1);
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    if (p.up) { ctx.strokeStyle = p.c; ctx.lineWidth = 1.5; ctx.stroke(); } else ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(f.life * 1.6, 0, 1);
+    ctx.font = 'bold 18px system-ui,sans-serif';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.c; ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ---------- HUD ---------- */
+function updateHud() {
+  $('score').textContent = score;
+  $('best').textContent = Math.max(best, score);
+  $('coins').textContent = coins;
+  $('next').textContent = TIERS[nxt].e;
+  if (typeof updateShakeLabel === 'function') updateShakeLabel();
+  const cx = $('codex');
+  if (!cx.children.length) {
+    TIERS.forEach((t, i) => { const s = document.createElement('span'); s.textContent = t.e; s.title = t.n; s.dataset.i = i; cx.appendChild(s); });
+  }
+  Array.from(cx.children).forEach((s, i) => s.classList.toggle('found', discovered.has(i)));
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+/* ---------- Sizing ---------- */
+function resize() {
+  const st = $('stage');
+  const scale = Math.min(st.clientWidth / W, st.clientHeight / H);
+  const cw = Math.floor(W * scale), ch = Math.floor(H * scale);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+/* ---------- Input ---------- */
+function toLogical(e) {
+  const r = cv.getBoundingClientRect();
+  return (e.clientX - r.left) * W / r.width;
+}
+cv.addEventListener('pointermove', e => { aimX = toLogical(e); });
+cv.addEventListener('pointerdown', e => { aimX = toLogical(e); Sfx.init(); });
+cv.addEventListener('pointerup', e => { aimX = toLogical(e); drop(); });
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') keys.left = true;
+  else if (e.key === 'ArrowRight') keys.right = true;
+  else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (state === 'play') drop(); }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  else if (e.key === 'ArrowRight') keys.right = false;
+});
+document.addEventListener('visibilitychange', () => {
+  paused = document.hidden;
+  if (state === 'play') { if (document.hidden) Platform.gameplayStop(); else Platform.gameplayStart(); }
+});
+
+$('btnPlay').addEventListener('click', () => { Sfx.init(); newGame(); });
+$('btnAgain').addEventListener('click', () => { Platform.midgameAd().then(newGame); });
+$('btnRestart').addEventListener('click', () => { if (state === 'play') track('restart', { score: score }); Sfx.init(); newGame(); });
+$('btnReviveAd').addEventListener('click', () => { Platform.rewardedAd('revive').then(ok => { if (ok) { revive('ad'); toast('🎬 Ad watched: revived!'); } }); });
+$('btnReviveCoins').addEventListener('click', () => {
+  if (coins < REVIVE_COST) return;
+  coins -= REVIVE_COST; store.set('coins', coins); revive('coins'); toast('−' + REVIVE_COST + ' 🪙 Revived! (' + coins + ' left)');
+});
+$('btnShake').addEventListener('click', () => {
+  if (state !== 'play' || paused) return;
+  Sfx.init();
+  if (coins >= SHAKE_COST) { coins -= SHAKE_COST; store.set('coins', coins); updateHud(); bubble('coins', '−' + SHAKE_COST + ' 🪙 The cauldron bubbles! (' + coins + ' left)'); }
+  else Platform.rewardedAd('shake').then(ok => { if (ok) bubble('ad', '🎬 Ad watched: the cauldron bubbles!'); });
+});
+function updateShakeLabel() {
+  const b = $('btnShake');
+  if (!b) return;
+  b.innerHTML = coins >= SHAKE_COST
+    ? '🫧 Bubble the cauldron <small>(' + SHAKE_COST + ' 🪙)</small>'
+    : '🫧 Bubble the cauldron <small>(▶ watch ad)</small>';
+}
+function setMuteIcon() { $('btnMute').textContent = Sfx.muted ? '🔇' : '🔊'; }
+$('btnMute').addEventListener('click', () => { Sfx.muted = !Sfx.muted; store.set('muted', Sfx.muted); setMuteIcon(); });
+
+/* ---------- Main loop ---------- */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (state === 'play' && !paused) {
+    acc += dt;
+    while (acc >= STEP) { physics(STEP); acc -= STEP; if (state !== 'play') break; }
+    if (state === 'play') update(dt);
+  } else acc = 0;
+  updateParticles(dt);
+  render(now);
+  requestAnimationFrame(frame);
+}
+
+function loadSaved() {
+  best = store.get('best', 0);
+  coins = store.get('coins', 0);
+  Sfx.muted = store.get('muted', false);
+  discovered.clear();
+  store.get('disc', [0]).forEach(i => discovered.add(i));
+  setMuteIcon(); updateHud();
+}
+function boot() {
+  setMuteIcon();
+  nxt = randTier();
+  updateHud();
+  resize();
+  track('app_loaded', { version: VERSION, platform: cg() ? 'crazygames' : 'standalone' });
+  requestAnimationFrame(frame);
+  const sdk = cg();
+  if (sdk && sdk.init) {
+    Promise.resolve().then(() => sdk.init()).then(() => {
+      cgReady = true;
+      track('sdk_ready', { env: sdk.environment });
+      loadSaved();
+      try { sdk.game.loadingStop && sdk.game.loadingStop(); } catch (e) { /* optional */ }
+    }).catch(e => track('sdk_init_failed', { msg: String(e) }));
+    try { sdk.game && sdk.game.loadingStart && sdk.game.loadingStart(); } catch (e) { /* optional */ }
+  }
+}
+boot();
+})();
+</script>
+</body>
+</html>
